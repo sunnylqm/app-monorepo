@@ -139,6 +139,7 @@ export const MaterialTabBar: FC<MaterialTabsProps> = ({
             fontWeight: labelStyle?.fontWeight,
             fontSize: labelStyle?.fontSize,
             fontFamily: labelStyle?.fontFamily,
+            textTransform: labelStyle?.textTransform,
           }}
           disableRipple
           label={

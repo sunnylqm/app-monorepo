@@ -229,6 +229,7 @@ const Home: FC = () => {
             inactiveColor={labelColor}
             labelStyle={{
               ...(Body2StrongProps as TextStyle),
+              textTransform: 'capitalize',
             }}
             indicatorStyle={{ backgroundColor: indicatorColor }}
             style={{
