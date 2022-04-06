@@ -213,6 +213,7 @@ const Home: FC = () => {
           maxWidth: MAX_PAGE_CONTAINER_WIDTH + 32,
           width: '100%',
           marginHorizontal: 'auto',
+          paddingHorizontal: 16,
           backgroundColor: tabbarBgColor,
         }}
         headerContainerStyle={{

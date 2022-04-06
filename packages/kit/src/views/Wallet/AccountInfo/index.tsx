@@ -188,7 +188,6 @@ const AccountInfo = () => {
       <Box
         py={8}
         w="100%"
-        px={4}
         flexDirection="column"
         bgColor="background-default"
         h={FIXED_VERTICAL_HEADER_HEIGHT}
@@ -204,7 +203,6 @@ const AccountInfo = () => {
     <Box
       h={FIXED_HORIZONTAL_HEDER_HEIGHT}
       py={12}
-      px={4}
       flexDirection="row"
       justifyContent="space-between"
       alignItems="center"

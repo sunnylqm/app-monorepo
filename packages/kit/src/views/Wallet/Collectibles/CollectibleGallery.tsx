@@ -257,7 +257,6 @@ const CollectibleGallery: FC<CollectibleGalleryProps> = ({
   >(
     () => ({
       contentContainerStyle: {
-        paddingHorizontal: 16,
         paddingBottom: collectibles.length ? 16 : 0,
         marginTop: 24,
       },

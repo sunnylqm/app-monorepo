@@ -250,7 +250,7 @@ const HistoricalRecords: FC<HistoricalRecordProps> = ({
   }
 
   return React.cloneElement(listElementType, {
-    contentContainerStyle: { paddingHorizontal: 16, marginTop: 24 },
+    contentContainerStyle: { marginTop: 24 },
     sections: transactionRecords,
     extraData: { isLoading, refreshAnimation },
     renderItem,

@@ -156,7 +156,6 @@ const AssetsList = () => {
   return (
     <Tabs.FlatList
       contentContainerStyle={{
-        paddingHorizontal: 16,
         marginTop: 24,
       }}
       data={accountTokens}
