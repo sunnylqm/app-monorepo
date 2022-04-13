@@ -11,11 +11,11 @@ import {
   decrypt,
   encrypt,
 } from '@onekeyfe/blockchain-libs/dist/secret/encryptors/aes256';
-import { UnsignedTx } from '@onekeyfe/blockchain-libs/dist/types/provider';
 import { Features } from '@onekeyfe/connect';
 import { IJsonRpcRequest } from '@onekeyfe/cross-inpage-provider-types';
 import BigNumber from 'bignumber.js';
 import * as bip39 from 'bip39';
+import natsort from 'natsort';
 
 import {
   backgroundClass,
@@ -187,8 +187,8 @@ class Engine {
         }
       }
 
-      // add default token
-      await this.addDefaultToken();
+      // add default token in background
+      this.addDefaultToken();
 
       const context = await this.dbApi.getContext();
       if (
@@ -261,9 +261,12 @@ class Engine {
   }
 
   @backgroundMethod()
-  getWallets(): Promise<Array<Wallet>> {
+  async getWallets(): Promise<Array<Wallet>> {
     // Return all wallets, including the special imported wallet and watching wallet.
-    return this.dbApi.getWallets();
+    const wallets = await this.dbApi.getWallets();
+    return wallets.sort((a, b) =>
+      natsort({ insensitive: true })(a.name, b.name),
+    );
   }
 
   @backgroundMethod()
@@ -461,7 +464,7 @@ class Engine {
             typeof networkId === 'undefined' ||
             isAccountCompatibleWithNetwork(a.id, networkId),
         )
-        .sort((a, b) => (a.name > b.name ? 1 : -1))
+        .sort((a, b) => natsort({ insensitive: true })(a.name, b.name))
         .map((a: DBAccount) => this.buildReturnedAccount(a, networkId)),
     );
   }
@@ -935,23 +938,29 @@ class Engine {
       // filter for account
       networkIds = networkIds.filter((v) => getImplFromNetworkId(v) === impl);
     }
-    for (const networkId of networkIds) {
-      for (const tokenIdOnNetwork of tokens[networkId]) {
-        try {
-          if (accountId && impl) {
-            // add for account
-            await this.addTokenToAccount(
-              accountId,
-              `${networkId}--${tokenIdOnNetwork}`,
-            );
-          } else {
-            await this.getOrAddToken(networkId, tokenIdOnNetwork);
-          }
-        } catch (error) {
-          console.error(error);
-        }
-      }
-    }
+    await Promise.all(
+      networkIds.reduce(
+        (waitingList: Array<Promise<void>>, networkId) =>
+          waitingList.concat(
+            tokens[networkId].map(async (tokenIdOnNetwork) => {
+              try {
+                const token = await this.getOrAddToken(
+                  networkId,
+                  tokenIdOnNetwork,
+                );
+                if (typeof token === 'undefined') {
+                  console.error('Token not added', networkId, tokenIdOnNetwork);
+                } else if (accountId && impl) {
+                  await this.addTokenToAccount(accountId, token.id);
+                }
+              } catch (e) {
+                console.error(e);
+              }
+            }),
+          ),
+        [],
+      ),
+    );
   }
 
   @backgroundMethod()
@@ -1169,7 +1178,25 @@ class Engine {
   }): Promise<IEncodedTxAny> {
     const { networkId, accountId } = params;
     const vault = await this.vaultFactory.getVault({ networkId, accountId });
-    return vault.attachFeeInfoToEncodedTx(params);
+    const txWithFee: IEncodedTxAny = await vault.attachFeeInfoToEncodedTx(
+      params,
+    );
+    debugLogger.sendTx('attachFeeInfoToEncodedTx', txWithFee);
+    return txWithFee as unknown;
+  }
+
+  @backgroundMethod()
+  async decodeTx({
+    networkId,
+    accountId,
+    encodedTx,
+  }: {
+    networkId: string;
+    accountId: string;
+    encodedTx: IEncodedTxAny;
+  }) {
+    const vault = await this.vaultFactory.getVault({ networkId, accountId });
+    return vault.decodeTx(encodedTx);
   }
 
   @backgroundMethod()

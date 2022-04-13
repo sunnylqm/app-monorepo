@@ -11,9 +11,11 @@ import {
   Token,
   Typography,
 } from '@onekeyhq/components';
+import { LocaleIds } from '@onekeyhq/components/src/locale';
 import { Text } from '@onekeyhq/components/src/Typography';
 import { DBSimpleAccount } from '@onekeyhq/engine/src/types/account';
 
+import { IDappCallParams } from '../../background/IBackgroundApi';
 import backgroundApiProxy from '../../background/instance/backgroundApiProxy';
 import { useActiveWalletAccount } from '../../hooks/redux';
 import useDappApproveAction from '../../hooks/useDappApproveAction';
@@ -37,7 +39,7 @@ const MockData = {
   ] as Permission[],
 };
 
-const getPermissionTransId = (type: PermissionType) => {
+const getPermissionTransId = (type: PermissionType): LocaleIds => {
   switch (type) {
     case 'view-addresses':
       return 'content__view_the_address_of_your_permitted_accounts_required';
@@ -56,7 +58,8 @@ const Connection = () => {
   const intl = useIntl();
   const { account, networkImpl, accountAddress } = useActiveWalletAccount();
   const accountInfo = account as DBSimpleAccount | null;
-  const { origin, scope, id } = useDappParams();
+  const { sourceInfo } = useDappParams();
+  const { origin, scope, id } = sourceInfo ?? ({} as IDappCallParams);
   const computedIsRug = isRug(origin);
 
   // TODO move to DappService

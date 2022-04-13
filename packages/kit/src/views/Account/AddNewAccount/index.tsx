@@ -5,11 +5,12 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/core';
 import { useIntl } from 'react-intl';
 
 import { Box, Form, Modal, Typography, useForm } from '@onekeyhq/components';
+import { LocaleIds } from '@onekeyhq/components/src/locale';
 import Pressable from '@onekeyhq/components/src/Pressable/Pressable';
 import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
 import FormChainSelector from '@onekeyhq/kit/src/components/Form/ChainSelector';
+import { useDrawer, useToast } from '@onekeyhq/kit/src/hooks';
 import { useAppSelector } from '@onekeyhq/kit/src/hooks/redux';
-import { useToast } from '@onekeyhq/kit/src/hooks/useToast';
 import {
   CreateAccountModalRoutes,
   CreateAccountRoutesParams,
@@ -39,6 +40,7 @@ type RouteProps = RouteProp<
 const CreateAccount: FC<CreateAccountProps> = ({ onClose }) => {
   const intl = useIntl();
   const toast = useToast();
+  const { closeDrawer } = useDrawer();
   const { dispatch } = backgroundApiProxy;
   const { control, handleSubmit, getValues, setValue, watch } =
     useForm<PrivateKeyFormValues>({ defaultValues: { name: '' } });
@@ -85,7 +87,7 @@ const CreateAccount: FC<CreateAccountProps> = ({ onClose }) => {
           wallet: wallet ?? null,
         });
       } catch (e) {
-        const errorKey = (e as { key: string }).key;
+        const errorKey = (e as { key: LocaleIds }).key;
         toast.show({
           title: intl.formatMessage({ id: errorKey }),
         });
@@ -98,13 +100,13 @@ const CreateAccount: FC<CreateAccountProps> = ({ onClose }) => {
           sharedChainName: selectedNetwork.impl,
         });
       }
-
+      closeDrawer();
       if (navigation.canGoBack()) {
         navigation.getParent()?.goBack?.();
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [toast, getValues, selectedWalletId, dispatch, intl, networks],
+    [toast, getValues, selectedWalletId, dispatch, intl, networks, closeDrawer],
   );
 
   const onSubmit = handleSubmit(() => {

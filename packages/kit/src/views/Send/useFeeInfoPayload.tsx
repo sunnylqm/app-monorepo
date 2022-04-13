@@ -112,7 +112,7 @@ export function useFeeInfoPayload({
     if (!encodedTx) {
       return null;
     }
-    const DEFAULT_PRESET_INDEX = '0';
+    const DEFAULT_PRESET_INDEX = '1';
     let feeInfoSelected = (
       route.params as { feeInfoSelected?: IFeeInfoSelected }
     )?.feeInfoSelected;
@@ -190,5 +190,10 @@ export function useFeeInfoPayload({
         setLoading(false);
       });
   }, [encodedTx, fetchFeeInfo, setFeeInfoPayload]);
-  return { feeInfoPayload, loading, getSelectedFeeInfoUnit, calculateTotalFee };
+  return {
+    feeInfoPayload,
+    feeInfoLoading: loading,
+    getSelectedFeeInfoUnit,
+    calculateTotalFee,
+  };
 }

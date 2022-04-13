@@ -16,6 +16,7 @@ import { useStatus } from '../../hooks/redux';
 type FieldValues = {
   password: string;
   confirmPassword: string;
+  withEnableAuthentication: boolean;
 };
 
 type SetupProps = {
@@ -94,7 +95,7 @@ const Setup: FC<SetupProps> = ({ onOk, skipSavePassword }) => {
             },
           }}
         >
-          <Form.PasswordInput />
+          <Form.PasswordInput autoFocus />
         </Form.Item>
         <Form.Item
           name="confirmPassword"

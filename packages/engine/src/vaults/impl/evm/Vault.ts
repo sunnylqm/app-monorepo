@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/require-await */
 
 import { defaultAbiCoder } from '@ethersproject/abi';
+import { ethers } from '@onekeyfe/blockchain-libs';
 import { toBigIntHex } from '@onekeyfe/blockchain-libs/dist/basic/bignumber-plus';
 import { UnsignedTx } from '@onekeyfe/blockchain-libs/dist/types/provider';
 import BigNumber from 'bignumber.js';
@@ -8,10 +9,12 @@ import { isNil } from 'lodash';
 
 import debugLogger from '@onekeyhq/shared/src/logger/debugLogger';
 
+import { NotImplemented } from '../../../errors';
 import { fillUnsignedTx, fillUnsignedTxObj } from '../../../proxy';
 import { DBAccount } from '../../../types/account';
 import { EIP1559Fee } from '../../../types/network';
 import {
+  IEncodedTxAny,
   IFeeInfo,
   IFeeInfoUnit,
   ISignCredentialOptions,
@@ -29,11 +32,22 @@ export type IEncodedTxEvm = {
   to: string;
   value: string;
   data: string;
-  gas?: string;
+  gas?: string; // alias for gasLimit
+  gasLimit?: string;
   gasPrice?: string;
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
 };
+
+export enum IDecodedTxEvmType {
+  NativeTransfer = 'NativeTransfer',
+  TokenTransfer = 'TokenTransfer',
+  TokenApprove = 'TokenApprove',
+  Swap = 'Swap',
+  NftTransfer = 'NftTransfer',
+  Transaction = 'Transaction',
+  ContractDeploy = 'ContractDeploy',
+}
 
 function decodeUnsignedTxFeeData(unsignedTx: UnsignedTx) {
   return {
@@ -99,6 +113,22 @@ export default class Vault extends VaultBase {
     return this.signAndSendTransaction(unsignedTx, options);
   }
 
+  async decodeTx(encodedTx: IEncodedTxAny): Promise<any> {
+    const ethersTx = (await this.helper.parseToNativeTx(
+      encodedTx,
+    )) as ethers.Transaction;
+
+    // call engine RPC here
+    // this.engine.proxyRPCCall(this.networkId,{ ... })
+
+    return {
+      type: IDecodedTxEvmType.NativeTransfer,
+      amount: ethers.utils.formatEther(ethersTx.value),
+      // DO NOT RETURN nativeTx which is NOT serializable
+      nativeTx: ethersTx,
+    };
+  }
+
   async buildEncodedTxFromTransfer(
     transferInfo: ITransferInfo,
   ): Promise<IEncodedTxEvm> {
@@ -125,6 +155,7 @@ export default class Vault extends VaultBase {
       const data = `0xa9059cbb${defaultAbiCoder
         .encode(['address', 'uint256'], [transferInfo.to, amountHex])
         .slice(2)}`; // method_selector(transfer) + byte32_pad(address) + byte32_pad(value)
+      // erc20 token transfer
       return {
         from: transferInfo.from,
         to: transferInfo.token,
@@ -154,6 +185,7 @@ export default class Vault extends VaultBase {
       value,
       data,
       gas,
+      gasLimit,
       gasPrice,
       maxFeePerGas,
       maxPriorityFeePerGas,
@@ -163,7 +195,8 @@ export default class Vault extends VaultBase {
       'buildUnsignedTxFromEncodedTx >>>> encodedTx',
       encodedTx,
     );
-
+    const gasLimitFinal = gasLimit ?? gas;
+    // TODO do not shift decimals here
     // fillUnsignedTx in each impl
     const unsignedTxInfo = fillUnsignedTxObj({
       network,
@@ -172,7 +205,9 @@ export default class Vault extends VaultBase {
       valueOnChain: value,
       extra: {
         data,
-        feeLimit: !isNil(gas) ? new BigNumber(gas) : undefined,
+        feeLimit: !isNil(gasLimitFinal)
+          ? new BigNumber(gasLimitFinal)
+          : undefined,
         feePricePerUnit: !isNil(gasPrice) ? new BigNumber(gasPrice) : undefined,
         maxFeePerGas,
         maxPriorityFeePerGas,
@@ -244,8 +279,10 @@ export default class Vault extends VaultBase {
     const { encodedTx, feeInfoValue } = params;
     const encodedTxWithFee = { ...encodedTx };
     if (!isNil(feeInfoValue.limit)) {
+      // TODO to hex toBigIntHex()
       encodedTxWithFee.gas = feeInfoValue.limit;
     }
+    // TODO to hex and shift decimals, do not shift decimals in fillUnsignedTxObj
     if (!isNil(feeInfoValue.price)) {
       if (feeInfoValue.eip1559) {
         const priceInfo = feeInfoValue.price as EIP1559Fee;

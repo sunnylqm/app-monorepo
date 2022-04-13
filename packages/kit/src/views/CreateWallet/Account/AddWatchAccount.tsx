@@ -4,6 +4,7 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useIntl } from 'react-intl';
 
 import { Form, Modal, useForm } from '@onekeyhq/components';
+import { LocaleIds } from '@onekeyhq/components/src/locale';
 import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
 import FormChainSelector from '@onekeyhq/kit/src/components/Form/ChainSelector';
 import { useAppSelector } from '@onekeyhq/kit/src/hooks/redux';
@@ -13,7 +14,7 @@ import {
 } from '@onekeyhq/kit/src/routes/Modal/CreateWallet';
 import { ModalScreenProps } from '@onekeyhq/kit/src/routes/types';
 
-import { useToast } from '../../../hooks';
+import { useDrawer, useToast } from '../../../hooks';
 
 type RouteProps = RouteProp<
   CreateWalletRoutesParams,
@@ -29,9 +30,10 @@ type NavigationProps = ModalScreenProps<CreateWalletRoutesParams>;
 
 const AddWatchAccount = () => {
   const {
-    params: { address },
+    params: { address, selectableNetworks },
   } = useRoute<RouteProps>();
   const toast = useToast();
+  const { closeDrawer } = useDrawer();
   const wallets = useAppSelector((s) => s.wallet.wallets);
   const navigation = useNavigation<NavigationProps['navigation']>();
   const { serviceApp } = backgroundApiProxy;
@@ -57,15 +59,24 @@ const AddWatchAccount = () => {
           values.name || defaultWalletName,
         );
         const inst = navigation.getParent() || navigation;
+        closeDrawer();
         inst.goBack();
       } catch (e) {
-        const errorKey = (e as { key: string }).key;
+        const errorKey = (e as { key: LocaleIds }).key;
         toast.show({
           title: intl.formatMessage({ id: errorKey }),
         });
       }
     },
-    [navigation, serviceApp, defaultWalletName, address, toast, intl],
+    [
+      navigation,
+      serviceApp,
+      defaultWalletName,
+      address,
+      toast,
+      intl,
+      closeDrawer,
+    ],
   );
   return (
     <Modal
@@ -81,7 +92,11 @@ const AddWatchAccount = () => {
       hideSecondaryAction
     >
       <Form>
-        <FormChainSelector control={control} name="networkId" />
+        <FormChainSelector
+          selectableNetworks={selectableNetworks}
+          control={control}
+          name="networkId"
+        />
         <Form.Item
           name="name"
           label={intl.formatMessage({ id: 'form__account_name' })}

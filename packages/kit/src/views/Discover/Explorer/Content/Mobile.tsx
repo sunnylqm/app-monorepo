@@ -2,7 +2,7 @@ import React, { FC } from 'react';
 
 import { useIntl } from 'react-intl';
 
-import { Box, Icon, Input, Pressable } from '@onekeyhq/components';
+import { Box, Icon, Pressable, Typography } from '@onekeyhq/components';
 import useNavigation from '@onekeyhq/kit/src/hooks/useNavigation';
 import {
   DiscoverModalRoutes,
@@ -15,17 +15,18 @@ import {
 } from '@onekeyhq/kit/src/routes/types';
 
 import type { ExplorerViewProps } from '..';
+import type { DAppItemType } from '../../type';
 
 type NavigationProps = ModalScreenProps<DiscoverRoutesParams>;
 
 const Mobile: FC<ExplorerViewProps> = ({
   searchContent,
-  onSearchContentChange,
   onSearchSubmitEditing,
   explorerContent,
   onGoBack,
   onMore,
   moreView,
+  showExplorerBar,
 }) => {
   const intl = useIntl();
   const navigation = useNavigation<NavigationProps['navigation']>();
@@ -35,7 +36,10 @@ const Mobile: FC<ExplorerViewProps> = ({
       screen: ModalRoutes.Discover,
       params: {
         screen: DiscoverModalRoutes.SearchHistoryModal,
-        params: { onSelectorItem: (item) => onSearchSubmitEditing?.(item.url) },
+        params: {
+          onSelectorItem: (item: DAppItemType | string) =>
+            onSearchSubmitEditing?.(item),
+        },
       },
     });
   };
@@ -43,40 +47,50 @@ const Mobile: FC<ExplorerViewProps> = ({
   return (
     <Box flex="1">
       <Box flex={1}>{explorerContent}</Box>
-      <Box
-        w="100%"
-        px={7}
-        h="48px"
-        bg="surface-subdued"
-        flexDirection="row"
-        alignItems="center"
-      >
-        <Pressable onPress={onGoBack}>
-          <Icon name="ChevronLeftOutline" size={24} />
-        </Pressable>
+      {!!showExplorerBar && (
+        <Box
+          w="100%"
+          px={7}
+          h="48px"
+          bg="surface-subdued"
+          flexDirection="row"
+          alignItems="center"
+        >
+          <Pressable onPress={onGoBack}>
+            <Icon name="ChevronLeftOutline" size={24} />
+          </Pressable>
 
-        <Pressable onPress={onSearch} flex={1} mx={7}>
-          <Input
-            w="100%"
-            h={8}
-            textSize="Caption"
-            isReadOnly
-            placeholder={intl.formatMessage({
-              id: 'content__search',
-            })}
-            value={searchContent}
-            onChangeText={(text) => onSearchContentChange?.(text)}
-            onSubmitEditing={(event) => {
-              onSearchContentChange?.(event.nativeEvent.text);
-              onSearchSubmitEditing?.(event.nativeEvent.text);
-            }}
-          />
-        </Pressable>
+          <Pressable onPress={onSearch} flex={1} mx={7}>
+            <Box
+              w="100%"
+              h={8}
+              bg="action-secondary-default"
+              borderWidth="1px"
+              borderColor="border-default"
+              flexDirection="row"
+              alignItems="center"
+              px={3}
+              borderRadius="12px"
+            >
+              <Typography.Caption
+                flex={1}
+                color={searchContent ? 'text-default' : 'text-subdued'}
+                numberOfLines={1}
+              >
+                {searchContent ||
+                  intl.formatMessage({
+                    id: 'content__search',
+                  })}
+              </Typography.Caption>
+            </Box>
+          </Pressable>
 
-        <Pressable onPress={onMore}>
-          <Icon name="DotsHorizontalOutline" size={24} />
-        </Pressable>
-      </Box>
+          <Pressable onPress={onMore}>
+            <Icon name="DotsHorizontalOutline" size={24} />
+          </Pressable>
+        </Box>
+      )}
+
       {moreView}
     </Box>
   );

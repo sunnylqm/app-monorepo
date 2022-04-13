@@ -1,4 +1,4 @@
-/* eslint-disable no-nested-ternary */
+/* eslint-disable no-nested-ternary, @typescript-eslint/no-unused-vars */
 import React, { useEffect, useMemo, useState } from 'react';
 
 import { useNavigation } from '@react-navigation/core';
@@ -12,13 +12,11 @@ import {
   Box,
   Button,
   Form,
-  Icon,
   Modal,
-  Pressable,
   Spinner,
-  Text,
   Typography,
   useForm,
+  useFormState,
   useIsVerticalLayout,
   useSafeAreaInsets,
 } from '@onekeyhq/components';
@@ -28,10 +26,11 @@ import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/background
 import { useManageTokens } from '@onekeyhq/kit/src/hooks/useManageTokens';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 
-import { FormatBalance, FormatCurrencyNative } from '../../components/Format';
+import { FormatBalance, FormatCurrencyToken } from '../../components/Format';
 import { useActiveWalletAccount, useGeneral } from '../../hooks/redux';
 
-import { FeeSpeedLabel } from './SendEditFee';
+import { DecodeTxButtonTest } from './DecodeTxButtonTest';
+import { FeeInfoInputForTransfer } from './FeeInfoInput';
 import { SendRoutes, SendRoutesParams } from './types';
 import { useFeeInfoPayload } from './useFeeInfoPayload';
 
@@ -69,20 +68,24 @@ const buildEncodedTxFromTransferDebounced = debounce(
 const Transaction = () => {
   // const encodedTxRef = useRef<any>(null);
   const [encodedTx, setEncodedTx] = useState(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [buildLoading, setBuildLoading] = useState(false);
   const navigation = useNavigation<NavigationProps>();
-  const { control, handleSubmit, watch } = useForm<TransactionValues>({
-    mode: 'onSubmit',
-    reValidateMode: 'onBlur',
-    defaultValues: {
-      to: '',
-      value: '', // TODO rename to amount
-    },
-  });
+
+  const { control, handleSubmit, watch, trigger, getValues } =
+    useForm<TransactionValues>({
+      mode: 'onBlur',
+      reValidateMode: 'onBlur',
+      defaultValues: {
+        to: '',
+        value: '', // TODO rename to amount
+      },
+    });
+  const { isValid } = useFormState({ control });
   const { account, accountId, networkId } = useActiveWalletAccount();
-  const { feeInfoPayload, loading: feeInfoPayloadLoading } = useFeeInfoPayload({
+  const { feeInfoPayload, feeInfoLoading } = useFeeInfoPayload({
     encodedTx,
   });
-
   const intl = useIntl();
   const { bottom } = useSafeAreaInsets();
   const { activeNetwork } = useGeneral();
@@ -134,6 +137,7 @@ const Transaction = () => {
     [accountTokens, selectOption?.value],
   );
 
+  // TODO watch performance
   const formFields = watch();
 
   // build transferInfo
@@ -160,7 +164,7 @@ const Transaction = () => {
       transferInfo,
       callback: async (promise) => {
         try {
-          // TODO show loading
+          setBuildLoading(true);
           const tx = await promise;
           if (tx) {
             setEncodedTx(tx);
@@ -168,6 +172,8 @@ const Transaction = () => {
         } catch (e) {
           // TODO display static form error message
           console.error(e);
+        } finally {
+          setBuildLoading(false);
         }
       },
     });
@@ -188,7 +194,8 @@ const Transaction = () => {
   }, [watch, tokenOptions]);
 
   const submitButtonDisabled =
-    feeInfoPayloadLoading ||
+    !isValid ||
+    feeInfoLoading ||
     !feeInfoPayload ||
     !formFields.to ||
     !formFields.value ||
@@ -204,27 +211,29 @@ const Transaction = () => {
         encodedTx,
         feeInfoValue: feeInfoPayload?.current.value,
       });
+    const payload = {
+      to: data.to,
+      account: {
+        id: account.id,
+        name: account.name,
+        address: (account as { address: string }).address,
+      },
+      network: {
+        id: activeNetwork?.network.id ?? '',
+        name: activeNetwork?.network.name ?? '',
+      },
+      value: data.value,
+      token: {
+        idOnNetwork: tokenConfig.tokenIdOnNetwork,
+        logoURI: tokenConfig.logoURI,
+        name: tokenConfig.name,
+        symbol: tokenConfig.symbol,
+      },
+    };
     const params = {
       payloadType: 'transfer', // transfer, transferNft, swap
-      payload: {
-        to: data.to,
-        account: {
-          id: account.id,
-          name: account.name,
-          address: (account as { address: string }).address,
-        },
-        network: {
-          id: activeNetwork?.network.id ?? '',
-          name: activeNetwork?.network.name ?? '',
-        },
-        value: data.value,
-        token: {
-          idOnNetwork: tokenConfig.tokenIdOnNetwork,
-          logoURI: tokenConfig.logoURI,
-          name: tokenConfig.name,
-          symbol: tokenConfig.symbol,
-        },
-      },
+      payload,
+      backRouteName: SendRoutes.Send,
       encodedTx: encodedTxWithFee,
       feeInfoSelected: feeInfoPayload?.selected,
     };
@@ -288,21 +297,24 @@ const Transaction = () => {
               <Form.Item
                 label={intl.formatMessage({ id: 'content__to' })}
                 labelAddon={platformEnv.isExtension ? [] : ['paste']}
+                onLabelAddonPress={() => trigger('to')} // call validation after paste
                 control={control}
                 name="to"
                 formControlProps={{ width: 'full' }}
                 rules={{
                   required: intl.formatMessage({ id: 'form__address_invalid' }),
                   validate: async (toAddress) => {
-                    if (networkId.length > 0) {
-                      return backgroundApiProxy.validator
-                        .validateAddress(networkId, toAddress)
-                        .then(
-                          () => true,
-                          () =>
-                            intl.formatMessage({ id: 'form__address_invalid' }),
-                        );
+                    try {
+                      await backgroundApiProxy.validator.validateAddress(
+                        networkId,
+                        toAddress,
+                      );
+                    } catch (error) {
+                      return intl.formatMessage({
+                        id: 'form__address_invalid',
+                      });
                     }
+                    return true;
                   },
                 }}
                 defaultValue=""
@@ -312,6 +324,7 @@ const Transaction = () => {
                   maxLength={80}
                   placeholder={intl.formatMessage({ id: 'form__address' })}
                   borderRadius="12px"
+                  h={{ base: 66, md: 58 }}
                 />
               </Form.Item>
               {/* <Box zIndex={999}>
@@ -352,6 +365,17 @@ const Transaction = () => {
                 control={control}
                 name="value"
                 defaultValue=""
+                helpText={
+                  <FormatCurrencyToken
+                    token={selectedToken}
+                    value={getValues('value')}
+                    render={(ele) => (
+                      <Typography.Body2 mt={1} color="text-subdued">
+                        {ele}
+                      </Typography.Body2>
+                    )}
+                  />
+                }
                 rules={{
                   required: intl.formatMessage({ id: 'form__amount_invalid' }),
                   validate: (value) => {
@@ -373,18 +397,19 @@ const Transaction = () => {
                 <Form.Input
                   maxLength={40}
                   w="100%"
+                  size="xl"
                   keyboardType="numeric"
                   rightCustomElement={
                     <>
-                      <Typography.Body2 mr={4} color="text-subdued">
+                      <Typography.Body1 mr={4} color="text-subdued">
                         {selectOption?.label ?? '-'}
-                      </Typography.Body2>
+                      </Typography.Body1>
                       {/* <Divider
                         orientation="vertical"
                         bg="border-subdued"
                         h={5}
                       />
-                      <Button type="plain">
+                      <Button type="plain" size="xl">
                         {intl.formatMessage({ id: 'action__max' })}
                       </Button> */}
                     </>
@@ -396,97 +421,15 @@ const Transaction = () => {
                   {intl.formatMessage({ id: 'content__fee' })}
                 </Typography.Body2Strong>
 
-                {/* TODO use standAloneComponent */}
-                <Pressable
-                  disabled={!feeInfoPayload || feeInfoPayloadLoading}
-                  onPress={() => {
-                    if (feeInfoPayloadLoading) {
-                      return;
-                    }
-                    navigation.navigate(SendRoutes.SendEditFee, {
-                      encodedTx,
-                      feeInfoSelected: feeInfoPayload?.selected,
-                    });
-                  }}
-                >
-                  {({ isHovered }) => (
-                    // fee TODO encodedTxRef.current -> bg -> unsignedTx -> gasLimit -> feeInfo
-                    <Row
-                      justifyContent="space-between"
-                      alignItems="center"
-                      bgColor={
-                        isHovered ? 'surface-hovered' : 'surface-default'
-                      }
-                      borderColor="border-default"
-                      borderWidth="1px"
-                      borderRadius="12px"
-                      paddingX="12px"
-                      paddingY="8px"
-                    >
-                      <Column>
-                        <Row>
-                          <Text
-                            typography={{
-                              sm: 'Body1Strong',
-                              md: 'Body2Strong',
-                            }}
-                          >
-                            {feeInfoPayload?.selected?.type === 'preset' ? (
-                              <FeeSpeedLabel
-                                index={feeInfoPayload?.selected?.preset}
-                              />
-                            ) : null}{' '}
-                            {feeInfoPayload?.current?.total ?? '-'}{' '}
-                            {feeInfoPayload?.info?.symbol}
-                          </Text>
-                        </Row>
-                        <Row>
-                          <FormatBalance
-                            formatOptions={{
-                              fixed: feeInfoPayload?.info.nativeDecimals,
-                              unit: feeInfoPayload?.info.decimals,
-                            }}
-                            balance={feeInfoPayload?.current?.total ?? ''}
-                            suffix={feeInfoPayload?.info.nativeSymbol}
-                            render={(ele) => (
-                              <Typography.Body2 mt={1} color="text-subdued">
-                                {!feeInfoPayload?.current?.total ? '-' : ele}
-                              </Typography.Body2>
-                            )}
-                          />
-                        </Row>
-                        <Row>
-                          <FormatCurrencyNative
-                            value={feeInfoPayload?.current?.totalNative}
-                            render={(ele) => (
-                              <Typography.Body2 mt={1} color="text-subdued">
-                                {!feeInfoPayload?.current?.totalNative
-                                  ? '-'
-                                  : ele}
-                              </Typography.Body2>
-                            )}
-                          />
-                        </Row>
-
-                        {/* <Typography.Body2 color="text-subdued">
-                          0.001694 ETH ~ 0.001977 ETH
-                        </Typography.Body2> */}
-                        {/* <Typography.Body2 color="text-subdued">
-                          3 min
-                        </Typography.Body2> */}
-                      </Column>
-
-                      {feeInfoPayloadLoading ? (
-                        <Spinner size="sm" />
-                      ) : (
-                        <Icon size={20} name="PencilSolid" />
-                      )}
-                    </Row>
-                  )}
-                </Pressable>
+                <FeeInfoInputForTransfer
+                  encodedTx={encodedTx}
+                  feeInfoPayload={feeInfoPayload}
+                  loading={feeInfoLoading}
+                />
               </Box>
             </Form>
             <Box display={{ md: 'none' }} h={10} />
+            <DecodeTxButtonTest encodedTx={encodedTx} />
           </>
         ),
       }}

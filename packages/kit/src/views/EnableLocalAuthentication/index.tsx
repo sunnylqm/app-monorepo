@@ -13,17 +13,19 @@ import { useToast } from '../../hooks/useToast';
 import { toggleEnableLocalAuthentication } from '../../store/reducers/settings';
 
 type EnableLocalAuthenticationProps = {
+  password: string;
   isLocalAuthentication?: boolean;
 };
 
 const EnableLocalAuthenticationDone: FC<EnableLocalAuthenticationProps> = ({
+  password,
   isLocalAuthentication,
 }) => {
   const { dispatch } = backgroundApiProxy;
   const intl = useIntl();
   const { enableLocalAuthentication } = useSettings();
-  const { info } = useToast();
-  const { localAuthenticate } = useLocalAuthentication();
+  const toast = useToast();
+  const { localAuthenticate, savePassword } = useLocalAuthentication();
 
   const navigation = useNavigation();
   useEffect(() => {
@@ -31,13 +33,19 @@ const EnableLocalAuthenticationDone: FC<EnableLocalAuthenticationProps> = ({
       if (!enableLocalAuthentication && !isLocalAuthentication) {
         const result = await localAuthenticate();
         if (!result.success) {
-          info(intl.formatMessage({ id: 'msg__verification_failure' }));
+          toast.show({
+            title: intl.formatMessage({ id: 'msg__verification_failure' }),
+          });
           navigation?.goBack?.();
           return;
         }
       }
+      savePassword(enableLocalAuthentication ? '' : password);
       dispatch(toggleEnableLocalAuthentication());
-      navigation?.goBack?.();
+      setTimeout(() => {
+        // delay 1000ms goBack, otherwise the keyboard will be showup
+        navigation?.goBack?.();
+      }, 1000);
     }
     main();
     // eslint-disable-next-line
@@ -52,8 +60,9 @@ const EnableLocalAuthenticationDone: FC<EnableLocalAuthenticationProps> = ({
 export const EnableLocalAuthentication = () => (
   <Modal footer={null}>
     <Protected>
-      {(_, isLocalAuthentication) => (
+      {(password, isLocalAuthentication) => (
         <EnableLocalAuthenticationDone
+          password={password}
           isLocalAuthentication={isLocalAuthentication}
         />
       )}

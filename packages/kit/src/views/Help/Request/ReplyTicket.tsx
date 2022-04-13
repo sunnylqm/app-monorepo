@@ -5,7 +5,7 @@ import axios from 'axios';
 import * as ImagePicker from 'expo-image-picker';
 import { Row } from 'native-base';
 import { useIntl } from 'react-intl';
-import { Platform, useWindowDimensions } from 'react-native';
+import { useWindowDimensions } from 'react-native';
 import uuid from 'react-native-uuid';
 
 import {
@@ -23,6 +23,7 @@ import {
   HistoryRequestModalRoutesParams,
   HistoryRequestRoutes,
 } from '@onekeyhq/kit/src/routes/Modal/HistoryRequest';
+import platformEnv from '@onekeyhq/shared/src/platformEnv';
 
 import { useSettings } from '../../../hooks/redux';
 
@@ -115,7 +116,7 @@ export const ReplyTicket: FC = () => {
       };
 
       let base64Image = result.uri;
-      if (Platform.OS === 'ios' && result.base64) {
+      if (platformEnv.isNative && result.base64) {
         base64Image = result.base64;
       }
       updateImageArr((prev) => [...prev, image]);
@@ -172,14 +173,7 @@ export const ReplyTicket: FC = () => {
               const imageIndex = prev.findIndex(
                 (i) => i.filename === imageModel.filename,
               );
-              console.log('xxx', imageModel, imageIndex);
-
               if (imageIndex < 0) return prev;
-              console.log([
-                ...prev.slice(0, imageIndex),
-                ...prev.slice(imageIndex),
-              ]);
-
               return [
                 ...prev.slice(0, imageIndex),
                 ...prev.slice(imageIndex + 1),
@@ -217,7 +211,7 @@ export const ReplyTicket: FC = () => {
       }}
       primaryActionTranslationId="action__submit"
       scrollViewProps={{
-        children: [
+        children: (
           <Form>
             <Form.Item
               label={intl.formatMessage({ id: 'form__your_reply' })}
@@ -242,10 +236,8 @@ export const ReplyTicket: FC = () => {
                     id: 'msg__exceeding_the_maximum_word_limit',
                   }),
                 },
-                validate: (value) => {
-                  console.log(`value = ${value}`);
-                  return undefined;
-                },
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                validate: (_) => undefined,
               }}
               name="comment"
               formControlProps={{ width: 'full' }}
@@ -254,8 +246,8 @@ export const ReplyTicket: FC = () => {
               <Form.Textarea borderRadius="12px" />
             </Form.Item>
             {imagesList()}
-          </Form>,
-        ],
+          </Form>
+        ),
       }}
     />
   );

@@ -5,6 +5,7 @@ import { useIntl } from 'react-intl';
 
 import { createBottomTabNavigator } from '@onekeyhq/components/src/Layout/BottomTabs';
 import LayoutHeader from '@onekeyhq/components/src/Layout/Header';
+import { LocaleIds } from '@onekeyhq/components/src/locale';
 import AccountSelector from '@onekeyhq/kit/src/components/Header/AccountSelector';
 import ChainSelector from '@onekeyhq/kit/src/components/Header/ChainSelector';
 import DiscoverScreen from '@onekeyhq/kit/src/views/Discover';
@@ -17,7 +18,14 @@ import { TabRoutes, TabRoutesParams } from '../types';
 
 const Tab = createBottomTabNavigator<TabRoutesParams>();
 
-export const tabRoutes = [
+interface TabRouteConfig {
+  name: TabRoutes;
+  translationId: LocaleIds;
+  component: React.FC;
+  tabBarIcon: () => string;
+}
+
+export const tabRoutes: TabRouteConfig[] = [
   {
     name: TabRoutes.Home,
     component: HomeScreen,
@@ -39,16 +47,16 @@ export const tabRoutes = [
           tabBarIcon: () => 'TrendingUpOutline',
           translationId: 'title__portfolio',
         },
-        {
-          name: TabRoutes.Discover,
-          component: DiscoverScreen,
-          tabBarIcon: () => 'CompassOutline',
-          translationId: 'title__explore',
-        },
-      ];
+      ] as TabRouteConfig[];
     }
     return [];
   })(),
+  {
+    name: TabRoutes.Discover,
+    component: DiscoverScreen,
+    tabBarIcon: () => 'CompassOutline',
+    translationId: 'title__explore',
+  },
   {
     name: TabRoutes.Me,
     component: MeScreen,
