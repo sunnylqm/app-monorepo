@@ -4,26 +4,25 @@ import { useIntl } from 'react-intl';
 
 import { Dialog } from '@onekeyhq/components';
 import { OnCloseCallback } from '@onekeyhq/components/src/Dialog/components/FooterButton';
+import { Wallet } from '@onekeyhq/engine/src/types/wallet';
+import Protected from '@onekeyhq/kit/src/components/Protected';
 
 import backgroundApiProxy from '../../../background/instance/backgroundApiProxy';
 import { useActiveWalletAccount } from '../../../hooks/redux';
 import { useToast } from '../../../hooks/useToast';
 import { setRefreshTS } from '../../../store/reducers/settings';
 
-export type DeleteWalletProp = {
-  walletId: string;
-  password: string;
-};
-
 type ManagerWalletDeleteDialogProps = {
   visible: boolean;
-  deleteWallet: DeleteWalletProp | undefined;
+  wallet: Wallet | undefined;
+  password: string | undefined;
   onDialogClose: () => void;
 };
 
 const ManagerWalletDeleteDialog: FC<ManagerWalletDeleteDialogProps> = ({
   visible,
-  deleteWallet,
+  wallet,
+  password,
   onDialogClose,
 }) => {
   const intl = useIntl();
@@ -31,7 +30,7 @@ const ManagerWalletDeleteDialog: FC<ManagerWalletDeleteDialogProps> = ({
   const { wallet: activeWallet } = useActiveWalletAccount();
   const { dispatch, engine, serviceApp } = backgroundApiProxy;
 
-  const { walletId, password } = deleteWallet ?? {};
+  const { id: walletId, name } = wallet ?? {};
   const [isLoading, setIsLoading] = React.useState(false);
 
   return (
@@ -60,18 +59,14 @@ const ManagerWalletDeleteDialog: FC<ManagerWalletDeleteDialogProps> = ({
           setIsLoading(true);
 
           engine
-            .getWallet(walletId)
-            .then(async (wallet) => {
-              await engine.removeWallet(walletId, password ?? '');
+            .removeWallet(walletId, password ?? '')
+            .then(async () => {
               if (activeWallet?.id === walletId) {
                 await serviceApp.autoChangeWallet();
               }
               dispatch(setRefreshTS());
               toast.info(
-                intl.formatMessage(
-                  { id: 'msg__wallet_deleted' },
-                  { 0: wallet.name },
-                ),
+                intl.formatMessage({ id: 'msg__wallet_deleted' }, { 0: name }),
               );
               onClose?.();
             })
@@ -88,4 +83,28 @@ const ManagerWalletDeleteDialog: FC<ManagerWalletDeleteDialogProps> = ({
   );
 };
 
-export default ManagerWalletDeleteDialog;
+type ManagerWalletDeleteProps = {
+  visible: boolean;
+  wallet: Wallet | undefined;
+  onDialogClose: () => void;
+};
+
+const ManagerWalletDelete: FC<ManagerWalletDeleteProps> = ({
+  visible,
+  wallet,
+  onDialogClose,
+}) =>
+  visible ? (
+    <Protected>
+      {(password) => (
+        <ManagerWalletDeleteDialog
+          visible={visible}
+          password={password}
+          wallet={wallet}
+          onDialogClose={onDialogClose}
+        />
+      )}
+    </Protected>
+  ) : null;
+
+export default ManagerWalletDelete;

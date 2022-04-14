@@ -23,9 +23,7 @@ import { ModalRoutes, RootRoutes } from '@onekeyhq/kit/src/routes/types';
 import useAppNavigation from '../../../hooks/useAppNavigation';
 import useLocalAuthenticationModal from '../../../hooks/useLocalAuthenticationModal';
 import { OnekeyHardwareModalRoutes } from '../../../routes/Modal/HardwareOnekey';
-import ManagerWalletDeleteDialog, {
-  DeleteWalletProp,
-} from '../../../views/ManagerWallet/DeleteWallet';
+import ManagerWalletDelete from '../../../views/ManagerWallet/DeleteWallet';
 
 type RightHeaderProps = {
   selectedWallet?: Wallet | null;
@@ -78,7 +76,7 @@ const RightHeader: FC<RightHeaderProps> = ({ selectedWallet }) => {
   const { showVerify } = useLocalAuthenticationModal();
   const [showBackupDialog, setShowBackupDialog] = useState(false);
   const [showDeleteWalletDialog, setShowDeleteWalletDialog] = useState(false);
-  const [deleteWallet, setDeleteWallet] = useState<DeleteWalletProp>();
+  const [deleteWallet, setDeleteWallet] = useState<Wallet>();
 
   const renderBackupState = useMemo(() => {
     if (!selectedWallet) return null;
@@ -99,20 +97,25 @@ const RightHeader: FC<RightHeaderProps> = ({ selectedWallet }) => {
   }, [isVerticalLayout, selectedWallet]);
 
   const onDeleteWallet = () => {
-    if (selectedWallet?.backuped === true) {
-      showVerify(
-        (pwd) => {
-          setDeleteWallet({
-            walletId: selectedWallet?.id ?? '',
-            password: pwd,
-          });
-          setShowDeleteWalletDialog(true);
-        },
-        () => {},
-      );
-    } else {
-      setShowBackupDialog(true);
-    }
+    setDeleteWallet(selectedWallet ?? undefined);
+    setShowDeleteWalletDialog(true);
+
+    // if (selectedWallet?.backuped === true) {
+    //   showVerify(
+    //     (pwd) => {
+    //       setDeleteWallet({
+    //         walletId: selectedWallet?.id ?? '',
+    //         password: pwd,
+    //       });
+    //       setTimeout(() => {
+    //         setShowDeleteWalletDialog(true);
+    //       }, 500);
+    //     },
+    //     () => {},
+    //   );
+    // } else {
+    //   setShowBackupDialog(true);
+    // }
   };
 
   return (
@@ -284,9 +287,9 @@ const RightHeader: FC<RightHeaderProps> = ({ selectedWallet }) => {
           />
         ) : null}
       </HStack>
-      <ManagerWalletDeleteDialog
+      <ManagerWalletDelete
         visible={showDeleteWalletDialog}
-        deleteWallet={deleteWallet}
+        wallet={deleteWallet}
         onDialogClose={() => {
           setShowDeleteWalletDialog(false);
         }}
