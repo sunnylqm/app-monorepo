@@ -106,7 +106,9 @@ const RightHeader: FC<RightHeaderProps> = ({ selectedWallet }) => {
             walletId: selectedWallet?.id ?? '',
             password: pwd,
           });
-          setShowDeleteWalletDialog(true);
+          setTimeout(() => {
+            setShowDeleteWalletDialog(true);
+          }, 500);
         },
         () => {},
       );
