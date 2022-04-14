@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 import {
   NavigationProp,
@@ -8,12 +8,13 @@ import {
 } from '@react-navigation/native';
 import { useIntl } from 'react-intl';
 
-import { utils } from '@onekeyhq/components';
+import { Center, Spinner, utils } from '@onekeyhq/components';
 import {
   HistoryEntryStatus,
   HistoryEntryType,
 } from '@onekeyhq/engine/src/types/history';
 import { IBroadcastedTx } from '@onekeyhq/engine/src/types/vault';
+import { EVMTxType } from '@onekeyhq/engine/src/vaults/impl/evm/decoder/decoder';
 import { IEncodedTxEvm } from '@onekeyhq/engine/src/vaults/impl/evm/Vault';
 import debugLogger from '@onekeyhq/shared/src/logger/debugLogger';
 
@@ -21,10 +22,15 @@ import backgroundApiProxy from '../../background/instance/backgroundApiProxy';
 import { useManageTokens } from '../../hooks';
 import { useActiveWalletAccount } from '../../hooks/redux';
 import useDappApproveAction from '../../hooks/useDappApproveAction';
+import { useDecodedTx } from '../../hooks/useDecodedTx';
 
-import { TxPreviewBlind } from './previews/TxPreviewBlind';
-import { ITxPreviewModalProps } from './previews/TxPreviewModal';
-import { TxPreviewTransfer } from './previews/TxPreviewTransfer';
+import {
+  ITxConfirmViewProps,
+  SendConfirmModal,
+} from './confirmViews/SendConfirmModal';
+import { TxConfirmBlind } from './confirmViews/TxConfirmBlind';
+import { TxConfirmTokenApprove } from './confirmViews/TxConfirmTokenApprove';
+import { TxConfirmTransfer } from './confirmViews/TxConfirmTransfer';
 import {
   SendRoutes,
   SendRoutesParams,
@@ -48,9 +54,14 @@ const TransactionConfirm = () => {
   const navigation = useNavigation<NavigationProps>();
   const route = useRoute<RouteProps>();
   const { params } = route;
+  const [encodedTx, setEncodedTx] = useState<IEncodedTxEvm>(
+    params.encodedTx as IEncodedTxEvm,
+  );
+  useEffect(() => {
+    setEncodedTx(params.encodedTx);
+  }, [params.encodedTx]);
+  const { decodedTx } = useDecodedTx({ encodedTx });
   let { accountId, networkId } = useActiveWalletAccount();
-  // TODO multi-chain encodedTx
-  const encodedTx = params.encodedTx as IEncodedTxEvm;
   // TODO rename to sourceInfo
   const isFromDapp = params.sourceInfo;
   const dappApprove = useDappApproveAction({
@@ -58,12 +69,6 @@ const TransactionConfirm = () => {
     closeOnError: true,
   });
   const useFeeInTx = !isFromDapp;
-  if (isFromDapp) {
-    // TODO dapp fee should be fixed by decimals
-    delete encodedTx.gas;
-    delete encodedTx.gasLimit;
-    delete encodedTx.gasPrice;
-  }
 
   let payload = params.payload as TransferSendParamsPayload;
   if (payload) {
@@ -117,6 +122,16 @@ const TransactionConfirm = () => {
 
   const handleNavigation = useCallback(
     async ({ close }: { onClose?: () => void; close: () => void }) => {
+      if (!encodedTx) {
+        return;
+      }
+      if (isFromDapp) {
+        // TODO dapp fee should be fixed by decimals
+        // TODO deepClone
+        delete encodedTx.gas;
+        delete encodedTx.gasLimit;
+        delete encodedTx.gasPrice;
+      }
       const encodedTxWithFee =
         !useFeeInTx && feeInfoPayload
           ? await backgroundApiProxy.engine.attachFeeInfoToEncodedTx({
@@ -142,11 +157,12 @@ const TransactionConfirm = () => {
       });
     },
     [
+      encodedTx,
+      isFromDapp,
       useFeeInTx,
       feeInfoPayload,
       networkId,
       accountId,
-      encodedTx,
       navigation,
       params,
       saveHistory,
@@ -155,8 +171,9 @@ const TransactionConfirm = () => {
     ],
   );
 
-  const sharedProps: ITxPreviewModalProps = {
+  const sharedProps: ITxConfirmViewProps = {
     encodedTx,
+    onEncodedTxUpdate: (tx) => setEncodedTx(tx),
     feeInfoPayload,
     feeInfoLoading,
     feeInfoEditable: !useFeeInTx,
@@ -168,20 +185,39 @@ const TransactionConfirm = () => {
     },
     onClose: dappApprove.reject,
     sourceInfo: params.sourceInfo,
+    decodedTx,
   };
 
-  if (isFromDapp) {
-    return <TxPreviewBlind {...sharedProps} />;
+  if (!decodedTx) {
+    return (
+      <SendConfirmModal {...sharedProps}>
+        <Center flex="1">
+          <Spinner />
+        </Center>
+      </SendConfirmModal>
+    );
   }
 
-  return (
-    <TxPreviewTransfer
-      {...sharedProps}
-      headerDescription={`${intl.formatMessage({
-        id: 'content__to',
-      })}:${utils.shortenAddress(encodedTx.to)}`}
-    />
-  );
+  if (decodedTx.txType === EVMTxType.TOKEN_APPROVE) {
+    return <TxConfirmTokenApprove {...sharedProps} />;
+  }
+
+  if (
+    decodedTx.txType === EVMTxType.NATIVE_TRANSFER ||
+    decodedTx.txType === EVMTxType.TOKEN_TRANSFER
+  ) {
+    return (
+      <TxConfirmTransfer
+        {...sharedProps}
+        headerDescription={`${intl.formatMessage({
+          id: 'content__to',
+        })}:${utils.shortenAddress(encodedTx.to)}`}
+      />
+    );
+  }
+
+  // Dapp blind sign
+  return <TxConfirmBlind {...sharedProps} />;
 };
 
 export default TransactionConfirm;
