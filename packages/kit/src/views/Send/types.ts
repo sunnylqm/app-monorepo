@@ -40,7 +40,7 @@ export type TransferSendParamsPayload = {
     name: string;
   };
   value: string;
-  maxValue: boolean;
+  isMax: boolean;
   token: {
     idOnNetwork: string;
     logoURI: string;

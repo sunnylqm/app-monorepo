@@ -161,10 +161,14 @@ const Transaction = () => {
       accountId,
       transferInfo,
       callback: async (promise) => {
+        if (!isValid) {
+          setEncodedTx(null);
+          return;
+        }
         try {
           setBuildLoading(true);
           const tx = await promise;
-          if (tx) {
+          if (tx && transferInfo.to) {
             setEncodedTx(tx);
           }
         } catch (e) {
@@ -176,12 +180,16 @@ const Transaction = () => {
         }
       },
     });
-  }, [accountId, networkId, transferInfo]);
+  }, [accountId, isValid, networkId, transferInfo]);
 
   const updateTransferInfo = useCallback(() => {
     const formValues = getValues();
-    const { to, value } = formValues;
+    let { to, value } = formValues;
     const from = (account as { address: string }).address;
+    // max token transfer
+    if (selectedToken?.tokenIdOnNetwork && isMax) {
+      value = selectedToken?.balance ?? '';
+    }
     const info = {
       from,
       to,
@@ -191,7 +199,13 @@ const Transaction = () => {
       max: isMax,
     } as ITransferInfo;
     setTransferInfo(info);
-  }, [account, getValues, isMax, selectedToken?.tokenIdOnNetwork]);
+  }, [
+    account,
+    getValues,
+    isMax,
+    selectedToken?.balance,
+    selectedToken?.tokenIdOnNetwork,
+  ]);
 
   useEffect(() => {
     updateTransferInfo();
@@ -245,7 +259,7 @@ const Transaction = () => {
         name: activeNetwork?.name ?? '',
       },
       value: data.value,
-      maxValue: isMax,
+      isMax,
       token: {
         idOnNetwork: tokenConfig.tokenIdOnNetwork,
         logoURI: tokenConfig.logoURI,

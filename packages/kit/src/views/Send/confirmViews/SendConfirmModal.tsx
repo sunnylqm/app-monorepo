@@ -17,14 +17,27 @@ import { useManageTokens } from '../../../hooks';
 import { useActiveWalletAccount } from '../../../hooks/redux';
 import { TransferSendParamsPayload } from '../types';
 
+export type ITxConfirmViewPropsHandleConfirm = ({
+  onClose,
+  close,
+  encodedTx,
+}: {
+  onClose?: () => void;
+  close: () => void;
+  encodedTx: IEncodedTxAny;
+}) => void;
 // TODO networkId, accountId, onSuccess
 export type ITxConfirmViewProps = ModalProps & {
   // TODO rename sourceInfo
   sourceInfo?: IDappCallParams;
   encodedTx: IEncodedTxAny;
   decodedTx?: any;
+  updateEncodedTxBeforeConfirm?: (
+    encodedTx: IEncodedTxAny,
+  ) => Promise<IEncodedTxAny>;
   confirmDisabled?: boolean;
-  onEncodedTxUpdate?: (encodedTx: IEncodedTxAny) => void;
+  handleConfirm: ITxConfirmViewPropsHandleConfirm;
+  onEncodedTxUpdate?: (encodedTx: IEncodedTxAny) => void; // TODO remove
   feeInfoPayload: IFeeInfoPayload | null;
   feeInfoLoading: boolean;
   feeInfoEditable?: boolean;
@@ -43,6 +56,8 @@ function SendConfirmModal(props: ITxConfirmViewProps) {
     confirmDisabled,
     feeInfoPayload,
     feeInfoLoading,
+    handleConfirm,
+    updateEncodedTxBeforeConfirm,
     ...others
   } = props;
 
@@ -70,6 +85,13 @@ function SendConfirmModal(props: ITxConfirmViewProps) {
       header={intl.formatMessage({ id: 'transaction__transaction_confirm' })}
       headerDescription={network?.name || network?.shortName || undefined}
       onSecondaryActionPress={({ close }) => close()}
+      onPrimaryActionPress={async ({ close, onClose }) => {
+        let tx = encodedTx;
+        if (updateEncodedTxBeforeConfirm) {
+          tx = await updateEncodedTxBeforeConfirm(tx);
+        }
+        handleConfirm({ close, onClose, encodedTx: tx });
+      }}
       {...others}
       scrollViewProps={{
         children: (

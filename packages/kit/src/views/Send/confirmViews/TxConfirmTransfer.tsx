@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 
 import BigNumber from 'bignumber.js';
 import { Column, Row } from 'native-base';
@@ -14,7 +14,15 @@ import {
   Typography,
   useThemeValue,
 } from '@onekeyhq/components';
+import {
+  IEncodedTxAny,
+  IEncodedTxUpdatePayloadTransfer,
+  IEncodedTxUpdateType,
+} from '@onekeyhq/engine/src/types/vault';
+import { IEncodedTxEvm } from '@onekeyhq/engine/src/vaults/impl/evm/Vault';
 
+import backgroundApiProxy from '../../../background/instance/backgroundApiProxy';
+import { useActiveWalletAccount } from '../../../hooks/redux';
 import { DecodeTxButtonTest } from '../DecodeTxButtonTest';
 import { FeeInfoInputForConfirm } from '../FeeInfoInput';
 import { TxTitleDetailView } from '../TxTitleDetailView';
@@ -29,14 +37,16 @@ function TxConfirmTransfer(props: ITxConfirmViewProps) {
     feeInfoLoading,
     feeInfoEditable,
     encodedTx,
+    onEncodedTxUpdate,
   } = props;
   const intl = useIntl();
+  const { accountId, networkId } = useActiveWalletAccount();
   const transferPayload = payload as TransferSendParamsPayload;
   const cardBgColor = useThemeValue('surface-default');
   const isTransferNativeToken = !transferPayload?.token?.idOnNetwork;
 
   const transferAmount = useMemo(() => {
-    if (transferPayload.maxValue) {
+    if (transferPayload.isMax) {
       if (isTransferNativeToken) {
         return new BigNumber(transferPayload.token.balance ?? 0)
           .minus(feeInfoPayload?.current?.totalNative ?? 0)
@@ -48,7 +58,7 @@ function TxConfirmTransfer(props: ITxConfirmViewProps) {
   }, [
     feeInfoPayload,
     isTransferNativeToken,
-    transferPayload.maxValue,
+    transferPayload.isMax,
     transferPayload.token.balance,
     transferPayload.value,
   ]);
@@ -64,6 +74,24 @@ function TxConfirmTransfer(props: ITxConfirmViewProps) {
     <SendConfirmModal
       {...props}
       confirmDisabled={new BigNumber(transferAmount).lt(0)}
+      updateEncodedTxBeforeConfirm={async (tx) => {
+        if (transferPayload.isMax) {
+          const updatePayload: IEncodedTxUpdatePayloadTransfer = {
+            amount: transferAmount,
+          };
+          const newTx = await backgroundApiProxy.engine.updateEncodedTx({
+            networkId,
+            accountId,
+            encodedTx: tx,
+            payload: updatePayload,
+            options: {
+              type: IEncodedTxUpdateType.transfer,
+            },
+          });
+          return Promise.resolve(newTx);
+        }
+        return Promise.resolve(tx);
+      }}
     >
       <Column flex="1">
         <Center>
@@ -122,11 +150,7 @@ function TxConfirmTransfer(props: ITxConfirmViewProps) {
         <Column bg={cardBgColor} borderRadius="12px" mt="2">
           <TxTitleDetailView
             title={intl.formatMessage({ id: 'content__amount' })}
-            detail={`${transferAmount}${
-              transferPayload.maxValue
-                ? ''
-                : ` ${transferPayload?.token?.symbol}`
-            }`}
+            detail={`${transferAmount} ${transferPayload?.token?.symbol}`}
           />
           <Divider />
           <FeeInfoInputForConfirm
