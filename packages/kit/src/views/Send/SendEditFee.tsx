@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useNavigation, useRoute } from '@react-navigation/core';
 import { RouteProp } from '@react-navigation/native';
+import BigNumber from 'bignumber.js';
 import { Column, Row } from 'native-base';
 import { Control, UseFormWatch } from 'react-hook-form';
 import { useIntl } from 'react-intl';
@@ -12,6 +13,7 @@ import {
   Center,
   Form,
   Modal,
+  NumberInput,
   RadioFee,
   SegmentedControl,
   Spinner,
@@ -80,10 +82,12 @@ const CustomFeeForm = ({
   feeInfoPayload,
   control,
   watch,
+  selectIndex,
 }: {
   feeInfoPayload: IFeeInfoPayload | null;
   control: Control<FeeValues>;
   watch: UseFormWatch<FeeValues>;
+  selectIndex: string;
 }) => {
   const intl = useIntl();
   const feeSymbol = feeInfoPayload?.info?.symbol || '';
@@ -150,6 +154,46 @@ const CustomFeeForm = ({
             required: intl.formatMessage({
               id: 'form__max_priority_fee_invalid_min',
             }),
+            validate: (value) => {
+              if (!value) {
+                return intl.formatMessage({
+                  id: 'form__max_priority_fee_invalid_min',
+                });
+              }
+              try {
+                const v = new BigNumber(value);
+                if (v.isLessThan(new BigNumber(0))) {
+                  return intl.formatMessage({
+                    id: 'form__max_priority_fee_invalid_min',
+                  });
+                }
+                // TODO current network
+                // if (v.isLessThan(new BigNumber())) {
+                //   return intl.formatMessage({
+                //     id: 'form__max_priority_fee_invalid_too_low',
+                //   });
+                // }
+                const fee = feeInfoPayload?.info?.prices[
+                  selectIndex as unknown as number
+                ] as EIP1559Fee;
+                if (
+                  v.isGreaterThan(
+                    new BigNumber(fee.maxPriorityFeePerGas).multipliedBy(
+                      new BigNumber(4),
+                    ),
+                  )
+                ) {
+                  return intl.formatMessage({
+                    id: 'form__max_priority_fee_invalid_too_much',
+                  });
+                }
+              } catch (error) {
+                return intl.formatMessage({
+                  id: 'form__max_priority_fee_invalid_min',
+                });
+              }
+              return true;
+            },
           }}
         >
           <Form.Input
@@ -171,6 +215,48 @@ const CustomFeeForm = ({
             required: intl.formatMessage({
               id: 'form__max_fee_invalid_too_low',
             }),
+            validate: (value) => {
+              if (!value) {
+                return intl.formatMessage({
+                  id: 'form__max_fee_invalid_too_low',
+                });
+              }
+              try {
+                const v = new BigNumber(value);
+                if (
+                  v.isLessThan(new BigNumber(formValues.maxPriorityFeePerGas))
+                ) {
+                  return intl.formatMessage({
+                    id: 'form__max_fee_invalid_min',
+                  });
+                }
+                // TODO current network
+                // if (v.isLessThan(new BigNumber())) {
+                //   return intl.formatMessage({
+                //     id: 'form__max_fee_invalid_too_low',
+                //   });
+                // }
+                const fee = feeInfoPayload?.info?.prices[
+                  selectIndex as unknown as number
+                ] as EIP1559Fee;
+                if (
+                  v.isGreaterThan(
+                    new BigNumber(fee.maxFeePerGas).multipliedBy(
+                      new BigNumber(4),
+                    ),
+                  )
+                ) {
+                  return intl.formatMessage({
+                    id: 'form__max_fee_invalid_too_much',
+                  });
+                }
+              } catch (error) {
+                return intl.formatMessage({
+                  id: 'form__max_fee_invalid_too_low',
+                });
+              }
+              return true;
+            },
           }}
         >
           <Form.Input
@@ -186,10 +272,12 @@ const CustomFeeForm = ({
           label={intl.formatMessage({ id: 'content__gas_price' })}
           control={control}
           name="gasPrice"
-          // TODO required rules
+          rules={{
+            required: intl.formatMessage({ id: 'content__gas_price' }),
+          }}
           defaultValue=""
         >
-          <Form.Input w="100%" size={isSmallScreen ? 'xl' : undefined} />
+          <NumberInput w="100%" size={isSmallScreen ? 'xl' : undefined} />
         </Form.Item>
       )}
 
@@ -197,7 +285,36 @@ const CustomFeeForm = ({
         label={intl.formatMessage({ id: 'content__gas_limit' })}
         control={control}
         name="gasLimit"
-        // TODO required rules
+        rules={{
+          required: intl.formatMessage({
+            id: 'form__gas_limit_invalid_min',
+          }),
+          validate: (value) => {
+            const v = new BigNumber(value ?? '');
+            if (v.isNaN()) {
+              return intl.formatMessage({ id: 'form__gas_limit_invalid_min' });
+            }
+            if (v.isLessThan(new BigNumber(21000))) {
+              return intl.formatMessage({ id: 'form__gas_limit_invalid_min' });
+            }
+            try {
+              const max = feeInfoPayload?.info?.limit ?? 21000;
+              if (
+                v.isGreaterThan(
+                  new BigNumber(max).multipliedBy(new BigNumber(20)),
+                )
+              ) {
+                return intl.formatMessage({
+                  id: 'form__gas_limit_invalid_too_much',
+                });
+              }
+            } catch (error) {
+              return intl.formatMessage({ id: 'form__gas_limit_invalid_min' });
+            }
+
+            return true;
+          },
+        }}
         defaultValue=""
       >
         <Form.Input w="100%" size={isSmallScreen ? 'xl' : undefined} />
@@ -496,6 +613,7 @@ const TransactionEditFee = ({ ...rest }) => {
               feeInfoPayload={feeInfoPayload}
               control={control}
               watch={watch}
+              selectIndex={radioValue}
             />
           )}
         </Box>
