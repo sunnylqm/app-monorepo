@@ -106,7 +106,9 @@ export function FormItem<TFieldValues extends FieldValues = FieldValues>({
               </Typography.Body2>
             </FormControl.HelperText>
           ) : null}
-          {error ? <FormErrorMessage message={error?.message} /> : null}
+          {error && error?.message ? (
+            <FormErrorMessage message={error?.message} />
+          ) : null}
         </FormControl>
       )}
     />

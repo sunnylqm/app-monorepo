@@ -6,7 +6,6 @@ import { useIntl } from 'react-intl';
 import { Modal } from '@onekeyhq/components';
 import { FormErrorMessage } from '@onekeyhq/components/src/Form/FormErrorMessage';
 import { ModalProps } from '@onekeyhq/components/src/Modal';
-import Typography from '@onekeyhq/components/src/Typography';
 import {
   IEncodedTxAny,
   IFeeInfoPayload,

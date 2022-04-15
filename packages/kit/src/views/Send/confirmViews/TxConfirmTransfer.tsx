@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 
 import BigNumber from 'bignumber.js';
 import { Column, Row } from 'native-base';
@@ -15,11 +15,9 @@ import {
   useThemeValue,
 } from '@onekeyhq/components';
 import {
-  IEncodedTxAny,
   IEncodedTxUpdatePayloadTransfer,
   IEncodedTxUpdateType,
 } from '@onekeyhq/engine/src/types/vault';
-import { IEncodedTxEvm } from '@onekeyhq/engine/src/vaults/impl/evm/Vault';
 
 import backgroundApiProxy from '../../../background/instance/backgroundApiProxy';
 import { useActiveWalletAccount } from '../../../hooks/redux';
@@ -37,7 +35,6 @@ function TxConfirmTransfer(props: ITxConfirmViewProps) {
     feeInfoLoading,
     feeInfoEditable,
     encodedTx,
-    onEncodedTxUpdate,
   } = props;
   const intl = useIntl();
   const { accountId, networkId } = useActiveWalletAccount();

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useState } from 'react';
 
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { Column, Row } from 'native-base';
@@ -9,7 +9,6 @@ import {
   Divider,
   Form,
   Modal,
-  RadioButton,
   useForm,
   useIsVerticalLayout,
   useSafeAreaInsets,
