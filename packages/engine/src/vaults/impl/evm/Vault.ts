@@ -226,7 +226,7 @@ export default class Vault extends VaultBase {
 
     const { token, spender } = decodedTx.info as EVMDecodedItemERC20Approve;
     let amountHex;
-    if (amount === InfiniteAmountText) {
+    if (amount === InfiniteAmountText || amount === InfiniteAmountHex) {
       amountHex = InfiniteAmountHex;
     } else {
       const amountBN = new BigNumber(amount);

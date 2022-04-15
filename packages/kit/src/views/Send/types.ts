@@ -16,6 +16,7 @@ export enum SendRoutes {
 
 export type TokenApproveAmountEditParams = {
   tokenApproveAmount: string;
+  isMaxAmount: boolean;
   sourceInfo?: IDappCallParams | undefined;
   encodedTx?: any;
   decodedTx?: any;
