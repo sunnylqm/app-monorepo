@@ -146,6 +146,7 @@ const TransactionConfirm = () => {
         encodedTx: encodedTxWithFee,
         accountId,
         networkId,
+        // TODO onComplete
         onSuccess: (tx) => {
           saveHistory(tx);
           updateAccountTokens();
@@ -190,7 +191,7 @@ const TransactionConfirm = () => {
 
   if (!decodedTx) {
     return (
-      <SendConfirmModal {...sharedProps}>
+      <SendConfirmModal {...sharedProps} confirmDisabled>
         <Center flex="1">
           <Spinner />
         </Center>

@@ -185,7 +185,7 @@ function TxConfirmTokenApprove(props: ITxConfirmViewProps) {
           </Typography.Subheading>
           <Column bg={cardBgColor} borderRadius="12px" mt="2">
             <FeeInfoInputForConfirm
-              disabled={!feeInfoEditable}
+              editable={feeInfoEditable}
               encodedTx={encodedTx}
               feeInfoPayload={feeInfoPayload}
               loading={feeInfoLoading}

@@ -13,7 +13,7 @@ type NumberInputProps = ComponentProps<typeof Input> & {
   onChangeText?: (text: string) => void;
   enableMaxButton?: boolean;
   isMax?: boolean;
-  onMaxChange?: (isMax?: boolean) => void;
+  onMaxChange?: (isMax: boolean) => void;
   maxText?: string;
 };
 
@@ -31,7 +31,7 @@ export const NumberInput: FC<NumberInputProps> = ({
 }) => {
   const intl = useIntl();
   // eslint-disable-next-line no-param-reassign
-  maxText = maxText || '$i18n$_MAX';
+  maxText = maxText || '$i18n$_最大金额';
   const [v, setV] = useState('');
 
   const maxButton = useMemo(
@@ -96,6 +96,7 @@ export const NumberInput: FC<NumberInputProps> = ({
   return (
     <Input
       w="full"
+      keyboardType="numeric"
       isReadOnly={enableMaxButton && isMax}
       rightSecondaryText={maxButton}
       {...props}
@@ -105,5 +106,3 @@ export const NumberInput: FC<NumberInputProps> = ({
     />
   );
 };
-
-export default NumberInput;

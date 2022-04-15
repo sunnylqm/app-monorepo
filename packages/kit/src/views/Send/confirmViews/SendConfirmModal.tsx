@@ -1,15 +1,19 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 
+import BigNumber from 'bignumber.js';
 import { useIntl } from 'react-intl';
 
 import { Modal } from '@onekeyhq/components';
+import { FormErrorMessage } from '@onekeyhq/components/src/Form/FormErrorMessage';
 import { ModalProps } from '@onekeyhq/components/src/Modal';
+import Typography from '@onekeyhq/components/src/Typography';
 import {
   IEncodedTxAny,
   IFeeInfoPayload,
 } from '@onekeyhq/engine/src/types/vault';
 
 import { IDappCallParams } from '../../../background/IBackgroundApi';
+import { useManageTokens } from '../../../hooks';
 import { useActiveWalletAccount } from '../../../hooks/redux';
 import { TransferSendParamsPayload } from '../types';
 
@@ -19,6 +23,7 @@ export type ITxConfirmViewProps = ModalProps & {
   sourceInfo?: IDappCallParams;
   encodedTx: IEncodedTxAny;
   decodedTx?: any;
+  confirmDisabled?: boolean;
   onEncodedTxUpdate?: (encodedTx: IEncodedTxAny) => void;
   feeInfoPayload: IFeeInfoPayload | null;
   feeInfoLoading: boolean;
@@ -31,24 +36,52 @@ export type ITxConfirmViewProps = ModalProps & {
 function SendConfirmModal(props: ITxConfirmViewProps) {
   const intl = useIntl();
   const { network } = useActiveWalletAccount();
-  const { children, encodedTx, decodedTx, ...others } = props;
+  const {
+    children,
+    encodedTx,
+    decodedTx,
+    confirmDisabled,
+    feeInfoPayload,
+    feeInfoLoading,
+    ...others
+  } = props;
+
+  const { nativeToken } = useManageTokens();
+
+  // TODO move to validator
+  const balanceLessThanFee = useMemo(() => {
+    const fee = feeInfoPayload?.current?.totalNative ?? '0';
+    return new BigNumber(nativeToken?.balance ?? '0').lt(fee);
+  }, [feeInfoPayload, nativeToken?.balance]);
 
   return (
     <Modal
       height="598px"
       primaryActionTranslationId="action__confirm"
       primaryActionProps={{
-        isDisabled: !encodedTx || !decodedTx,
+        isDisabled:
+          feeInfoLoading ||
+          balanceLessThanFee ||
+          !encodedTx ||
+          !decodedTx ||
+          confirmDisabled,
       }}
       secondaryActionTranslationId="action__reject"
       header={intl.formatMessage({ id: 'transaction__transaction_confirm' })}
-      headerDescription={
-        network?.network?.name || network?.network?.shortName || undefined
-      }
+      headerDescription={network?.name || network?.shortName || undefined}
       onSecondaryActionPress={({ close }) => close()}
       {...others}
       scrollViewProps={{
-        children,
+        children: (
+          <>
+            {children}
+            {balanceLessThanFee ? (
+              <FormErrorMessage
+                message={intl.formatMessage({ id: 'form__amount_invalid' })}
+              />
+            ) : null}
+          </>
+        ),
       }}
     />
   );

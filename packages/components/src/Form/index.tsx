@@ -1,4 +1,4 @@
-import NumberInput from '../NumberInput';
+import { NumberInput } from '../NumberInput';
 
 import { Form as BaseForm } from './Form';
 import { FormCheckBox } from './FormCheckBox';

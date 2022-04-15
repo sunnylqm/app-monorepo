@@ -137,10 +137,14 @@ export default class Vault extends VaultBase {
     transferInfo: ITransferInfo,
   ): Promise<IEncodedTxEvm> {
     const network = await this.getNetwork();
+    const isMax = transferInfo.max;
 
     const { amount } = transferInfo;
     let amountBN = new BigNumber(amount);
     if (amountBN.isNaN()) {
+      amountBN = new BigNumber('0');
+    }
+    if (isMax) {
       amountBN = new BigNumber('0');
     }
 
@@ -173,8 +177,8 @@ export default class Vault extends VaultBase {
     return {
       from: transferInfo.from,
       to: transferInfo.to,
-      value: amountHex, // TODO convert to hex value
-      data: '0x', // TODO native transfer default data value
+      value: amountHex,
+      data: '0x',
     };
   }
 
@@ -307,13 +311,11 @@ export default class Vault extends VaultBase {
   }
 
   async fetchFeeInfo(encodedTx: IEncodedTxEvm): Promise<IFeeInfo> {
-    // TODO use Promise.all more fast
-    const network = await this.getNetwork();
-    const unsignedTx = await this.buildUnsignedTxFromEncodedTx(encodedTx);
-    // [{baseFee: '928.361757873', maxPriorityFeePerGas: '11.36366', maxFeePerGas: '939.725417873'}]
-    // [10]
-    const prices = await this.engine.getGasPrice(this.networkId);
-    const limit = unsignedTx.feeLimit?.toFixed();
+    const [network, prices, unsignedTx] = await Promise.all([
+      this.getNetwork(),
+      this.engine.getGasPrice(this.networkId),
+      this.buildUnsignedTxFromEncodedTx(encodedTx),
+    ]);
 
     const eip1559 = Boolean(
       prices?.length && prices?.every((gas) => typeof gas === 'object'),
@@ -326,6 +328,9 @@ export default class Vault extends VaultBase {
         maxFeePerGas: encodedTx.maxFeePerGas,
       } as EIP1559Fee;
     }
+    // [{baseFee: '928.361757873', maxPriorityFeePerGas: '11.36366', maxFeePerGas: '939.725417873'}]
+    // [10]
+    const limit = unsignedTx.feeLimit?.toFixed();
 
     return {
       nativeSymbol: network.symbol,

@@ -26,6 +26,7 @@ export type ITransferInfo = {
   to: string;
   amount: string;
   token?: string;
+  max?: boolean;
 };
 
 export type IApproveInfo = {

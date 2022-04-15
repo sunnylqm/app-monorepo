@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 
 import BigNumber from 'bignumber.js';
 import { Column, Row } from 'native-base';
@@ -34,14 +34,37 @@ function TxConfirmTransfer(props: ITxConfirmViewProps) {
   const transferPayload = payload as TransferSendParamsPayload;
   const cardBgColor = useThemeValue('surface-default');
   const isTransferNativeToken = !transferPayload?.token?.idOnNetwork;
-  const totalTransfer = isTransferNativeToken
-    ? new BigNumber(transferPayload?.value)
-        .plus(feeInfoPayload?.current?.totalNative ?? '')
-        .toFixed()
-    : false;
+
+  const transferAmount = useMemo(() => {
+    if (transferPayload.maxValue) {
+      if (isTransferNativeToken) {
+        return new BigNumber(transferPayload.token.balance ?? 0)
+          .minus(feeInfoPayload?.current?.totalNative ?? 0)
+          .toFixed();
+      }
+      return transferPayload.token.balance ?? '0';
+    }
+    return transferPayload.value ?? '0';
+  }, [
+    feeInfoPayload,
+    isTransferNativeToken,
+    transferPayload.maxValue,
+    transferPayload.token.balance,
+    transferPayload.value,
+  ]);
+
+  const totalCost = useMemo(() => {
+    const fee = feeInfoPayload?.current?.totalNative ?? '0';
+    return isTransferNativeToken
+      ? new BigNumber(fee).plus(transferAmount ?? '0').toFixed()
+      : fee;
+  }, [feeInfoPayload, isTransferNativeToken, transferAmount]);
 
   return (
-    <SendConfirmModal {...props}>
+    <SendConfirmModal
+      {...props}
+      confirmDisabled={new BigNumber(transferAmount).lt(0)}
+    >
       <Column flex="1">
         <Center>
           <Token src={transferPayload?.token?.logoURI} size="56px" />
@@ -99,17 +122,21 @@ function TxConfirmTransfer(props: ITxConfirmViewProps) {
         <Column bg={cardBgColor} borderRadius="12px" mt="2">
           <TxTitleDetailView
             title={intl.formatMessage({ id: 'content__amount' })}
-            detail={`${transferPayload?.value} ${transferPayload?.token?.symbol}`}
+            detail={`${transferAmount}${
+              transferPayload.maxValue
+                ? ''
+                : ` ${transferPayload?.token?.symbol}`
+            }`}
           />
           <Divider />
           <FeeInfoInputForConfirm
-            disabled={!feeInfoEditable}
+            editable={feeInfoEditable}
             encodedTx={encodedTx}
             feeInfoPayload={feeInfoPayload}
             loading={feeInfoLoading}
           />
           <Divider />
-          {totalTransfer && (
+          {isTransferNativeToken && (
             <TxTitleDetailView
               title={`${intl.formatMessage({
                 id: 'content__total',
@@ -120,7 +147,7 @@ function TxConfirmTransfer(props: ITxConfirmViewProps) {
                 feeInfoLoading ? (
                   <Spinner />
                 ) : (
-                  `${totalTransfer} ${feeInfoPayload?.info?.nativeSymbol || ''}`
+                  `${totalCost} ${feeInfoPayload?.info?.nativeSymbol || ''}`
                 )
               }
             />

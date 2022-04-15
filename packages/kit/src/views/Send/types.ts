@@ -40,11 +40,13 @@ export type TransferSendParamsPayload = {
     name: string;
   };
   value: string;
+  maxValue: boolean;
   token: {
     idOnNetwork: string;
     logoURI: string;
     name: string;
     symbol: string;
+    balance?: string;
   };
 };
 

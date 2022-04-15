@@ -48,7 +48,7 @@ function TokenApproveAmountEdit({ ...rest }) {
   const route = useRoute<RouteProps>();
   const { networkId, accountId } = useActiveWalletAccount();
   const { encodedTx, tokenApproveAmount, isMaxAmount } = route.params;
-  const [isMax, setIsMax] = useState<boolean | undefined>(isMaxAmount);
+  const [isMax, setIsMax] = useState(isMaxAmount);
   const decodedTx = route.params.decodedTx as EVMDecodedItem | null;
   const token = decodedTx?.info?.token;
   const symbol = token?.symbol;
@@ -58,8 +58,8 @@ function TokenApproveAmountEdit({ ...rest }) {
     handleSubmit,
     trigger: formTrigger,
   } = useForm<FeeValues>({
-    mode: 'onBlur',
-    reValidateMode: 'onBlur',
+    mode: 'onChange',
+    reValidateMode: 'onChange',
     defaultValues: {
       amount: isMaxAmount ? '' : tokenApproveAmount,
     },
